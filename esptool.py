@@ -23,9 +23,38 @@ import serial
 import time
 import argparse
 import os
+import platform
 import subprocess
 import tempfile
 
+def identify_platform():
+    sys_name = platform.system()
+    if 'CYGWIN_NT' in sys_name:
+        sys_name = 'Windows'
+    return sys_name
+
+def get_pwd():
+	return os.path.dirname(os.path.abspath(__file__))
+
+def get_nm():
+	my_platform = identify_platform();
+
+	tc_nm = get_pwd()
+	if 'Windows' in my_platform:
+		tc_nm += "/../xtensa-lx106-elf/bin/xtensa-lx106-elf-nm.exe"
+	else:
+		tc_nm += "/../xtensa-lx106-elf/bin/xtensa-lx106-elf-nm"
+	return tc_nm
+
+def get_objcopy():
+	my_platform = identify_platform();
+
+	tc_objcopy = get_pwd()
+	if 'Windows' in my_platform:
+		tc_objcopy += "/../xtensa-lx106-elf/bin/xtensa-lx106-elf-objcopy.exe"
+	else:
+		tc_objcopy += "/../xtensa-lx106-elf/bin/xtensa-lx106-elf-objcopy"
+	return tc_objcopy
 
 class ESPROM:
     # These are the currently known commands supported by the ROM
@@ -388,7 +417,7 @@ class ELFFile:
             return
         self.symbols = {}
         try:
-            tool_nm = "xtensa-lx106-elf-nm"
+			tool_nm = get_nm()
             if os.getenv('XTENSA_CORE') == 'lx106':
                 tool_nm = "xt-nm"
             proc = subprocess.Popen([tool_nm, self.name], stdout=subprocess.PIPE)
@@ -424,7 +453,7 @@ class ELFFile:
                 return int(fields[3], 0)
 
     def load_section(self, section):
-        tool_objcopy = "xtensa-lx106-elf-objcopy"
+		tool_objcopy = get_objcopy()
         if os.getenv('XTENSA_CORE') == 'lx106':
             tool_objcopy = "xt-objcopy"
         tmpsection = tempfile.mktemp(suffix=".section")
