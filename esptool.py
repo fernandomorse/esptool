@@ -84,6 +84,8 @@ class ESPROM:
     # OTP ROM addresses
     ESP_OTP_MAC0    = 0x3ff00050
     ESP_OTP_MAC1    = 0x3ff00054
+	ESP_OTP_MAC2    = 0x3ff00058
+	ESP_OTP_MAC3    = 0x3ff0005c
 
     # Sflash stub: an assembly routine to read from spi flash and send to host
     SFLASH_STUB     = "\x80\x3c\x00\x40\x1c\x4b\x00\x40\x21\x11\x00\x40\x00\x80" \
@@ -203,6 +205,58 @@ class ESPROM:
                     time.sleep(0.05)
         raise FatalError('Failed to connect to ESP8266')
 
+    """read mac addr"""
+    def get_mac(self):
+         retry_times = 3
+         try:
+             reg1 = self.read_reg(esp.ESP_OTP_MAC0)
+             reg2 = self.read_reg(esp.ESP_OTP_MAC1)
+             reg3 = self.read_reg(esp.ESP_OTP_MAC2)
+             reg4 = self.read_reg(esp.ESP_OTP_MAC3)
+         except:
+             print "Read reg error"
+             return False
+
+         chip_flg = (reg3>>15)&0x1
+         if chip_flg == 0:
+             print 'Warning : ESP8089 CHIP DETECTED, STOP'
+             return False
+         else:
+             #print 'Chip_flag',chip_flg
+             m0 = ((reg2>>16)&0xff)
+             m1 = ((reg2>>8)&0xff)
+             m2 = ((reg2 & 0xff))
+             m3 = ((reg1>>24)&0xff)
+             self.MAC2 = m0
+             self.MAC3 = m1
+             self.MAC4 = m2
+             self.MAC5 = m3
+
+             if m0 ==0:
+                 #print "r1: %02x; r2:%02x ; r3: %02x"%(m1,m2,m3)
+                 mac= "1A-FE-34-%02x-%02x-%02x"%(m1,m2,m3)
+                 mac2 = "1AFE34%02x%02x%02x"%(m1,m2,m3)
+                 mac = mac.upper()
+                 mac2 = mac2.upper()
+                 mac_ap = ("1A-FE-34-%02x-%02x-%02x"%(m1,m2,m3)).upper()
+                 mac_sta = ("18-FE-34-%02x-%02x-%02x"%(m1,m2,m3)).upper()
+                 print "MAC AP: %s"%(mac_ap)
+                 print "MAC STA: %s"%(mac_sta)
+             elif m0 == 1:
+                 #print "r1: %02x; r2:%02x ; r3: %02x"%(m1,m2,m3)
+                 mac= "AC-D0-74-%02x-%02x-%02x"%(m1,m2,m3)
+                 mac2 = "ACD074%02x%02x%02x"%(m1,m2,m3)
+                 mac = mac.upper()
+                 mac2 = mac2.upper()
+                 mac_ap = ("AC-D0-74-%02x-%02x-%02x"%(m1,m2,m3)).upper()
+                 mac_sta = ("AC-D0-74-%02x-%02x-%02x"%(m1,m2,m3)).upper()
+                 print "MAC AP: %s"%(mac_ap)
+                 print "MAC STA: %s"%(mac_sta)
+                 return True
+             else:
+                 print "MAC read error..."
+                 return False
+
     """ Read memory address in target """
     def read_reg(self, addr):
         res = self.command(ESPROM.ESP_READ_REG, struct.pack('<I', addr))
@@ -278,18 +332,6 @@ class ESPROM:
         # Fake flash begin immediately followed by flash end
         self.flash_begin(0, 0)
         self.flash_finish(reboot)
-
-    """ Read MAC from OTP ROM """
-    def read_mac(self):
-        mac0 = self.read_reg(self.ESP_OTP_MAC0)
-        mac1 = self.read_reg(self.ESP_OTP_MAC1)
-        if ((mac1 >> 16) & 0xff) == 0:
-            oui = (0x18, 0xfe, 0x34)
-        elif ((mac1 >> 16) & 0xff) == 1:
-            oui = (0xac, 0xd0, 0x74)
-        else:
-            raise FatalError("Unknown OUI")
-        return oui + ((mac1 >> 8) & 0xff, mac1 & 0xff, (mac0 >> 24) & 0xff)
 
     """ Read SPI flash manufacturer and device id """
     def flash_id(self):
@@ -733,8 +775,7 @@ def main():
         f.close()
 
     elif args.operation == 'read_mac':
-        mac = esp.read_mac()
-        print 'MAC: %s' % ':'.join(map(lambda x: '%02x' % x, mac))
+		esp.get_mac()
 
     elif args.operation == 'flash_id':
         flash_id = esp.flash_id()
