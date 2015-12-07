@@ -34,27 +34,27 @@ def identify_platform():
     return sys_name
 
 def get_pwd():
-	return os.path.dirname(os.path.abspath(__file__))
+    return os.path.dirname(os.path.abspath(__file__))
 
 def get_nm():
-	my_platform = identify_platform();
+    my_platform = identify_platform();
 
-	tc_nm = get_pwd()
-	if 'Windows' in my_platform:
-		tc_nm += "/../xtensa-lx106-elf/bin/xtensa-lx106-elf-nm.exe"
-	else:
-		tc_nm += "/../xtensa-lx106-elf/bin/xtensa-lx106-elf-nm"
-	return tc_nm
+    tc_nm = get_pwd()
+    if 'Windows' in my_platform:
+    	tc_nm += "/../xtensa-lx106-elf/bin/xtensa-lx106-elf-nm.exe"
+    else:
+    	tc_nm += "/../xtensa-lx106-elf/bin/xtensa-lx106-elf-nm"
+    return tc_nm
 
 def get_objcopy():
-	my_platform = identify_platform();
+    my_platform = identify_platform();
 
-	tc_objcopy = get_pwd()
-	if 'Windows' in my_platform:
-		tc_objcopy += "/../xtensa-lx106-elf/bin/xtensa-lx106-elf-objcopy.exe"
-	else:
-		tc_objcopy += "/../xtensa-lx106-elf/bin/xtensa-lx106-elf-objcopy"
-	return tc_objcopy
+    tc_objcopy = get_pwd()
+    if 'Windows' in my_platform:
+    	tc_objcopy += "/../xtensa-lx106-elf/bin/xtensa-lx106-elf-objcopy.exe"
+    else:
+    	tc_objcopy += "/../xtensa-lx106-elf/bin/xtensa-lx106-elf-objcopy"
+    return tc_objcopy
 
 class ESPROM:
     # These are the currently known commands supported by the ROM
@@ -84,8 +84,8 @@ class ESPROM:
     # OTP ROM addresses
     ESP_OTP_MAC0    = 0x3ff00050
     ESP_OTP_MAC1    = 0x3ff00054
-	ESP_OTP_MAC2    = 0x3ff00058
-	ESP_OTP_MAC3    = 0x3ff0005c
+    ESP_OTP_MAC2    = 0x3ff00058
+    ESP_OTP_MAC3    = 0x3ff0005c
 
     # Sflash stub: an assembly routine to read from spi flash and send to host
     SFLASH_STUB     = "\x80\x3c\x00\x40\x1c\x4b\x00\x40\x21\x11\x00\x40\x00\x80" \
@@ -309,6 +309,33 @@ class ESPROM:
             erase_size = (num_sectors - head_sectors) * sector_size
 
         self._port.timeout = 10
+
+    	area_len = int(_size)
+    	sector_no = offset/4096;
+    	sector_num_per_block = 16;
+    	#total_sector_num = (0== (area_len%4096))? area_len/4096 :  1+(area_len/4096);
+    	if 0== (area_len%4096):
+    		total_sector_num = area_len/4096
+    	else:
+    		total_sector_num = 1+(area_len/4096)
+    	#check if erase area reach over block boundary
+    	head_sector_num = sector_num_per_block - (sector_no%sector_num_per_block);
+    	#head_sector_num = (head_sector_num>=total_sector_num)? total_sector_num : head_sector_num;
+    	if head_sector_num>=total_sector_num :
+    		head_sector_num = total_sector_num
+    	else:
+    		head_sector_num = head_sector_num
+
+    	if (total_sector_num - 2 * head_sector_num)> 0:
+    		size = (total_sector_num-head_sector_num)*4096
+    		print "head: ",head_sector_num,";total:",total_sector_num
+    		print "erase size : ",size
+    	else:
+    		size = int( math.ceil( total_sector_num/2.0) * 4096 )
+    		print "head:",head_sector_num,";total:",total_sector_num
+    		print "erase size :",size
+
+
         result = self.command(ESPROM.ESP_FLASH_BEGIN,
                               struct.pack('<IIII', erase_size, num_blocks, ESPROM.ESP_FLASH_BLOCK, offset))[1]
         if result != "\0\0":
@@ -459,7 +486,7 @@ class ELFFile:
             return
         self.symbols = {}
         try:
-			tool_nm = get_nm()
+            tool_nm = get_nm()
             if os.getenv('XTENSA_CORE') == 'lx106':
                 tool_nm = "xt-nm"
             proc = subprocess.Popen([tool_nm, self.name], stdout=subprocess.PIPE)
@@ -495,7 +522,7 @@ class ELFFile:
                 return int(fields[3], 0)
 
     def load_section(self, section):
-		tool_objcopy = get_objcopy()
+    	tool_objcopy = get_objcopy()
         if os.getenv('XTENSA_CORE') == 'lx106':
             tool_objcopy = "xt-objcopy"
         tmpsection = tempfile.mktemp(suffix=".section")
@@ -798,7 +825,7 @@ def main():
  
 
     elif args.operation == 'read_mac':
-		esp.get_mac()
+    	esp.get_mac()
 
     elif args.operation == 'flash_id':
         flash_id = esp.flash_id()
